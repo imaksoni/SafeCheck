@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+// import 'package:firebase_core/firebase_core.dart';
 import 'app/router.dart';
 
-void main() {
-  // TODO: Initialize Firebase configuration here when available
-  runApp(const SafeCheckApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // TODO: Initialize Firebase configuration here when available using flutterfire configure
+  // await Firebase.initializeApp(
+  //   options: DefaultFirebaseOptions.currentPlatform,
+  // );
+  runApp(
+    const ProviderScope(
+      child: SafeCheckApp(),
+    ),
+  );
 }
 
 class SafeCheckApp extends StatelessWidget {
