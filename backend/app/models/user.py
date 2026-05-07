@@ -18,3 +18,4 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     trusted_contacts = relationship("TrustedContact", back_populates="owner", cascade="all, delete-orphan")
+    safety_sessions = relationship("SafetySession", back_populates="owner", cascade="all, delete-orphan")

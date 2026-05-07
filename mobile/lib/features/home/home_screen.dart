@@ -31,6 +31,13 @@ class HomeScreen extends ConsumerWidget {
               },
               child: const Text('Manage Trusted Contacts'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/safety-sessions');
+              },
+              child: const Text('Safety Sessions'),
+            ),
           ],
         ),
       ),
