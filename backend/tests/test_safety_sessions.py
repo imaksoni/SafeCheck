@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
+from datetime import datetime, timedelta
 
 from app.main import app
 from app.db.session import get_db, Base
@@ -40,9 +41,9 @@ def setup_db():
 def test_user(setup_db):
     db = TestingSessionLocal()
     user = User(
-        firebase_uid="test_uid_trusted",
-        email="test_trusted@example.com",
-        full_name="Trusted Tester",
+        firebase_uid="test_uid_session",
+        email="session@example.com",
+        full_name="Session Tester",
     )
     db.add(user)
     db.commit()
@@ -54,9 +55,9 @@ def test_user(setup_db):
 def other_user(setup_db):
     db = TestingSessionLocal()
     user = User(
-        firebase_uid="other_uid",
-        email="other@example.com",
-        full_name="Other Tester",
+        firebase_uid="other_uid_session",
+        email="other_session@example.com",
+        full_name="Other Session Tester",
     )
     db.add(user)
     db.commit()
@@ -70,47 +71,48 @@ def get_auth_headers():
     return {"Authorization": "Bearer fake_token"}
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_create_trusted_contact(mock_verify_id_token, test_user):
+def test_create_safety_session(mock_verify_id_token, test_user):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+    now_str = datetime.utcnow().isoformat()
+    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
 
     response = client.post(
-        "/api/v1/trusted-contacts/",
+        "/api/v1/sessions",
         headers=get_auth_headers(),
         json={
-            "name": "Jane Doe",
-            "phone": "+19876543210",
-            "relation": "Sister",
-            "allow_session_alerts": True,
-            "allow_lost_phone_alerts": False
+            "title": "Walking home",
+            "destination": "Home",
+            "start_at": now_str,
+            "deadline_at": future_str
         }
     )
 
     assert response.status_code == 201
     data = response.json()
-    assert data["name"] == "Jane Doe"
-    assert data["phone"] == "+19876543210"
-    assert data["relation"] == "Sister"
-    assert data["allow_session_alerts"] is True
-    assert data["allow_lost_phone_alerts"] is False
+    assert data["title"] == "Walking home"
+    assert data["destination"] == "Home"
+    assert data["status"] == "active"
     assert "id" in data
     assert data["user_id"] == test_user.id
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_get_trusted_contacts(mock_verify_id_token, test_user):
+def test_get_safety_sessions(mock_verify_id_token, test_user):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+    now_str = datetime.utcnow().isoformat()
+    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
 
-    # Create contact
     client.post(
-        "/api/v1/trusted-contacts/",
+        "/api/v1/sessions",
         headers=get_auth_headers(),
         json={
-            "name": "Jane Doe",
-            "phone": "+19876543210"
+            "title": "Walking home",
+            "start_at": now_str,
+            "deadline_at": future_str
         }
     )
 
     response = client.get(
-        "/api/v1/trusted-contacts/",
+        "/api/v1/sessions",
         headers=get_auth_headers()
     )
 
@@ -118,82 +120,81 @@ def test_get_trusted_contacts(mock_verify_id_token, test_user):
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 1
-    assert data[0]["name"] == "Jane Doe"
+    assert data[0]["title"] == "Walking home"
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_update_trusted_contact(mock_verify_id_token, test_user):
+def test_cancel_safety_session(mock_verify_id_token, test_user):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+    now_str = datetime.utcnow().isoformat()
+    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
 
-    # Create
     create_response = client.post(
-        "/api/v1/trusted-contacts/",
+        "/api/v1/sessions",
         headers=get_auth_headers(),
-        json={"name": "Jane", "phone": "123"}
+        json={
+            "title": "Walking home",
+            "start_at": now_str,
+            "deadline_at": future_str
+        }
     )
-    contact_id = create_response.json()["id"]
+    session_id = create_response.json()["id"]
 
-    # Update
-    update_response = client.put(
-        f"/api/v1/trusted-contacts/{contact_id}",
-        headers=get_auth_headers(),
-        json={"name": "Jane Smith", "allow_session_alerts": True}
-    )
-
-    assert update_response.status_code == 200
-    data = update_response.json()
-    assert data["name"] == "Jane Smith"
-    assert data["allow_session_alerts"] is True
-    assert data["phone"] == "123"
-
-@patch("app.api.deps.auth.verify_id_token")
-def test_delete_trusted_contact(mock_verify_id_token, test_user):
-    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-
-    # Create
-    create_response = client.post(
-        "/api/v1/trusted-contacts/",
-        headers=get_auth_headers(),
-        json={"name": "Jane", "phone": "123"}
-    )
-    contact_id = create_response.json()["id"]
-
-    # Delete
-    delete_response = client.delete(
-        f"/api/v1/trusted-contacts/{contact_id}",
+    cancel_response = client.post(
+        f"/api/v1/sessions/{session_id}/cancel",
         headers=get_auth_headers()
     )
-    assert delete_response.status_code == 204
 
-    # Verify deletion
-    get_response = client.get(
-        "/api/v1/trusted-contacts/",
-        headers=get_auth_headers()
-    )
-    assert len(get_response.json()) == 0
+    assert cancel_response.status_code == 200
+    data = cancel_response.json()
+    assert data["status"] == "cancelled"
+    assert data["cancelled_at"] is not None
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_cannot_access_others_contact(mock_verify_id_token, test_user, other_user):
-    # Setup: test_user creates a contact
+def test_complete_safety_session(mock_verify_id_token, test_user):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    create_response = client.post(
-        "/api/v1/trusted-contacts/",
-        headers=get_auth_headers(),
-        json={"name": "Jane", "phone": "123"}
-    )
-    contact_id = create_response.json()["id"]
+    now_str = datetime.utcnow().isoformat()
+    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
 
-    # Action: other_user tries to update it
+    create_response = client.post(
+        "/api/v1/sessions",
+        headers=get_auth_headers(),
+        json={
+            "title": "Walking home",
+            "start_at": now_str,
+            "deadline_at": future_str
+        }
+    )
+    session_id = create_response.json()["id"]
+
+    complete_response = client.post(
+        f"/api/v1/sessions/{session_id}/complete",
+        headers=get_auth_headers()
+    )
+
+    assert complete_response.status_code == 200
+    data = complete_response.json()
+    assert data["status"] == "completed"
+
+@patch("app.api.deps.auth.verify_id_token")
+def test_cannot_access_others_session(mock_verify_id_token, test_user, other_user):
+    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+    now_str = datetime.utcnow().isoformat()
+    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+
+    create_response = client.post(
+        "/api/v1/sessions",
+        headers=get_auth_headers(),
+        json={
+            "title": "Walking home",
+            "start_at": now_str,
+            "deadline_at": future_str
+        }
+    )
+    session_id = create_response.json()["id"]
+
     mock_verify_id_token.return_value = {"uid": other_user.firebase_uid}
-    update_response = client.put(
-        f"/api/v1/trusted-contacts/{contact_id}",
-        headers=get_auth_headers(),
-        json={"name": "Hacked"}
-    )
-    assert update_response.status_code == 403
-
-    # Action: other_user tries to delete it
-    delete_response = client.delete(
-        f"/api/v1/trusted-contacts/{contact_id}",
+    get_response = client.get(
+        f"/api/v1/sessions/{session_id}",
         headers=get_auth_headers()
     )
-    assert delete_response.status_code == 403
+    assert get_response.status_code == 404

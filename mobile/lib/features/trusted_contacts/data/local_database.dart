@@ -23,8 +23,9 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -40,6 +41,45 @@ class LocalDatabase {
         allow_lost_phone_alerts INTEGER NOT NULL DEFAULT 0,
         is_synced INTEGER NOT NULL DEFAULT 1,
         is_deleted INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await _createSafetySessionsTables(db);
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createSafetySessionsTables(db);
+    }
+  }
+
+  Future _createSafetySessionsTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE safety_sessions (
+        local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER,
+        title TEXT NOT NULL,
+        destination TEXT,
+        companion_name TEXT,
+        companion_phone TEXT,
+        notes TEXT,
+        status TEXT NOT NULL,
+        start_at TEXT NOT NULL,
+        deadline_at TEXT NOT NULL,
+        cancelled_at TEXT,
+        alert_sent_at TEXT,
+        is_synced INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE pending_outbox_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT NOT NULL,
+        entity_id INTEGER,
+        action TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
       )
     ''');
   }
