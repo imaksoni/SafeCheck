@@ -25,7 +25,20 @@ docker compose up --build -d
 The backend should be available at http://localhost:8000.
 You can verify it via `curl http://localhost:8000/health`.
 
-### 3. Run Mobile App
+### 3. Firebase Setup
+The mobile app uses Firebase for Authentication. To configure Firebase, install the FlutterFire CLI and configure the app for your Firebase project:
+
+```bash
+# Install the CLI if not already installed
+dart pub global activate flutterfire_cli
+
+# Configure Firebase
+cd mobile
+flutterfire configure
+```
+This will generate the required `firebase_options.dart` and update platform configurations. Then, uncomment the Firebase initialization code in `mobile/lib/main.dart`.
+
+### 4. Run Mobile App
 Navigate to the mobile directory and run:
 
 ```bash
