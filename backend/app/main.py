@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1 import health, auth
+from app.api.v1 import health, auth, trusted_contacts
 from app.core.firebase import init_firebase
 
 init_firebase()
@@ -12,3 +12,4 @@ def root_health_check():
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(trusted_contacts.router, prefix="/api/v1/trusted-contacts", tags=["trusted-contacts"])

@@ -19,8 +19,20 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text('Welcome to SafeCheck!'),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Welcome to SafeCheck!'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/trusted-contacts');
+              },
+              child: const Text('Manage Trusted Contacts'),
+            ),
+          ],
+        ),
       ),
     );
   }
