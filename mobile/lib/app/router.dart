@@ -3,6 +3,7 @@ import '../features/auth/presentation/auth_gate.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/trusted_contacts/presentation/contacts_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -15,6 +16,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const SignupScreen());
       case '/home':
         return MaterialPageRoute(builder: (_) => const HomeScreen());
+      case '/trusted-contacts':
+        return MaterialPageRoute(builder: (_) => const ContactsScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
