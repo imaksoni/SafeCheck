@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from typing import Optional
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -17,7 +18,7 @@ class Alert(Base):
     # Types: sos, timer_expired, lost_phone
     type: Mapped[str] = mapped_column(String)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", backref="alerts")
     session = relationship("SafetySession", backref="alerts")

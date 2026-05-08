@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from typing import Optional, List
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,8 +15,8 @@ class User(Base):
     email: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
     full_name: Mapped[Optional[str]] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     trusted_contacts = relationship("TrustedContact", back_populates="owner", cascade="all, delete-orphan")
     safety_sessions = relationship("SafetySession", back_populates="owner", cascade="all, delete-orphan")

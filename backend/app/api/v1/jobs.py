@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Any
 
 from app.db.session import get_db
@@ -17,7 +17,7 @@ def process_expired_sessions(db: Session = Depends(get_db)) -> Any:
     """
     Check for expired safety sessions and create alerts + deliveries.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Find active sessions that have passed their deadline and are not cancelled
     expired_sessions = db.query(SafetySession).filter(

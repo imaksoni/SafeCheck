@@ -1,3 +1,4 @@
+import '../../../app/config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,7 @@ final trustedContactsApiProvider = Provider<TrustedContactsApiClient>((ref) {
 
 class TrustedContactsApiClient {
   // In a real app, this should be configurable (e.g. from env)
-  static const String baseUrl = 'http://10.0.2.2:8000/api/v1/trusted-contacts';
+  static String get baseUrl => '${Config.apiUrl}/trusted-contacts';
   final SecureTokenStorage _tokenStorage;
 
   TrustedContactsApiClient(this._tokenStorage);

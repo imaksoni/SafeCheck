@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.alert import Alert
 from app.models.alert_delivery import AlertDelivery
@@ -11,7 +11,7 @@ def create_alert(db: Session, alert: AlertCreate) -> Alert:
         session_id=alert.session_id,
         snapshot_id=alert.snapshot_id,
         type=alert.type,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db.add(db_alert)
     db.commit()
@@ -24,8 +24,8 @@ def create_alert_delivery(db: Session, alert_id: int, contact_id: int) -> AlertD
         contact_id=contact_id,
         status="pending",
         retry_count=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
     db.add(db_delivery)
     db.commit()

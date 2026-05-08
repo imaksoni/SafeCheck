@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from app.models.user import User
 from app.models.safety_session import SafetySession
@@ -22,8 +22,8 @@ def test_session(db_session, test_user):
     session = SafetySession(
         user_id=test_user.id,
         title="Walking home",
-        start_at=datetime.utcnow(),
-        deadline_at=datetime.utcnow() + timedelta(hours=1),
+        start_at=datetime.now(timezone.utc),
+        deadline_at=datetime.now(timezone.utc) + timedelta(hours=1),
         status="active"
     )
     db_session.add(session)
@@ -37,7 +37,7 @@ def get_auth_headers():
 @patch("app.api.deps.auth.verify_id_token")
 def test_create_snapshot(mock_verify_id_token, test_user, test_session, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
 
     response = client.post(
         "/api/v1/snapshots",
@@ -80,7 +80,7 @@ def test_get_latest_snapshot(mock_verify_id_token, test_user, test_session, clie
             "is_battery_low": False,
             "network_type": "wifi",
             "is_online": True,
-            "captured_at": (datetime.utcnow() - timedelta(minutes=5)).isoformat(),
+            "captured_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),
             "source": "background"
         }
     )
@@ -96,7 +96,7 @@ def test_get_latest_snapshot(mock_verify_id_token, test_user, test_session, clie
             "is_battery_low": False,
             "network_type": "cellular",
             "is_online": True,
-            "captured_at": datetime.utcnow().isoformat(),
+            "captured_at": datetime.now(timezone.utc).isoformat(),
             "source": "background"
         }
     )
@@ -127,7 +127,7 @@ def test_get_session_snapshots(mock_verify_id_token, test_user, test_session, cl
             "is_battery_low": False,
             "network_type": "wifi",
             "is_online": True,
-            "captured_at": datetime.utcnow().isoformat(),
+            "captured_at": datetime.now(timezone.utc).isoformat(),
             "source": "manual"
         }
     )

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.safety_session import SafetySession
 from app.schemas.safety_session import SafetySessionCreate, SafetySessionUpdate
@@ -34,7 +34,7 @@ def cancel_safety_session(db: Session, session_id: int, user_id: int) -> Optiona
     db_session = get_safety_session(db, session_id=session_id, user_id=user_id)
     if db_session:
         db_session.status = "cancelled"
-        db_session.cancelled_at = datetime.utcnow()
+        db_session.cancelled_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(db_session)
     return db_session

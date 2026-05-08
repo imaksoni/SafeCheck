@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from app.models.user import User
 
@@ -34,8 +34,8 @@ def get_auth_headers():
 @patch("app.api.deps.auth.verify_id_token")
 def test_create_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
-    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
+    future_str = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
     response = client.post(
         "/api/v1/sessions",
@@ -59,8 +59,8 @@ def test_create_safety_session(mock_verify_id_token, test_user, client):
 @patch("app.api.deps.auth.verify_id_token")
 def test_get_safety_sessions(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
-    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
+    future_str = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
     client.post(
         "/api/v1/sessions",
@@ -86,8 +86,8 @@ def test_get_safety_sessions(mock_verify_id_token, test_user, client):
 @patch("app.api.deps.auth.verify_id_token")
 def test_cancel_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
-    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
+    future_str = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
     create_response = client.post(
         "/api/v1/sessions",
@@ -113,8 +113,8 @@ def test_cancel_safety_session(mock_verify_id_token, test_user, client):
 @patch("app.api.deps.auth.verify_id_token")
 def test_complete_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
-    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
+    future_str = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
     create_response = client.post(
         "/api/v1/sessions",
@@ -139,8 +139,8 @@ def test_complete_safety_session(mock_verify_id_token, test_user, client):
 @patch("app.api.deps.auth.verify_id_token")
 def test_cannot_access_others_session(mock_verify_id_token, test_user, other_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
-    now_str = datetime.utcnow().isoformat()
-    future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
+    future_str = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
     create_response = client.post(
         "/api/v1/sessions",

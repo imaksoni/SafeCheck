@@ -1,3 +1,4 @@
+from datetime import timezone
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from app.models.trusted_contact import TrustedContact
@@ -51,7 +52,7 @@ def test_sos_with_provided_snapshot(client: TestClient, db_session: Session):
                 "is_battery_low": False,
                 "network_type": "wifi",
                 "is_online": True,
-                "captured_at": datetime.datetime.utcnow().isoformat(),
+                "captured_at": datetime.datetime.now(timezone.utc).isoformat(),
                 "source": "manual_sos"
             }
         }
@@ -110,7 +111,7 @@ def test_sos_without_provided_snapshot(client: TestClient, db_session: Session):
             "is_battery_low": False,
             "network_type": "cellular",
             "is_online": True,
-            "captured_at": datetime.datetime.utcnow().isoformat(),
+            "captured_at": datetime.datetime.now(timezone.utc).isoformat(),
             "source": "background"
         }
         client.post("/api/v1/snapshots", json=snap_payload, headers=headers)
@@ -157,7 +158,7 @@ def test_lost_phone_with_snapshot(client: TestClient, db_session: Session):
             "is_battery_low": False,
             "network_type": "cellular",
             "is_online": True,
-            "captured_at": datetime.datetime.utcnow().isoformat(),
+            "captured_at": datetime.datetime.now(timezone.utc).isoformat(),
             "source": "background"
         }
         client.post("/api/v1/snapshots", json=snap_payload, headers=headers)
