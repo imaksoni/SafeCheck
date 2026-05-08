@@ -1,76 +1,36 @@
 import pytest
 from unittest.mock import patch
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.db.session import get_db, Base
-from app.models import * # Ensure all models are loaded for Base.metadata.create_all
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.models.user import User
 
-# Setup in-memory sqlite db for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
 @pytest.fixture
-def test_user(setup_db):
-    db = TestingSessionLocal()
+def test_user(db_session):
     user = User(
         firebase_uid="test_uid_trusted",
         email="test_trusted@example.com",
         full_name="Trusted Tester",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    db.close()
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
 
 @pytest.fixture
-def other_user(setup_db):
-    db = TestingSessionLocal()
+def other_user(db_session):
     user = User(
         firebase_uid="other_uid",
         email="other@example.com",
         full_name="Other Tester",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    db.close()
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
-
-client = TestClient(app)
 
 def get_auth_headers():
     return {"Authorization": "Bearer fake_token"}
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_create_trusted_contact(mock_verify_id_token, test_user):
+def test_create_trusted_contact(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
 
     response = client.post(
@@ -96,7 +56,7 @@ def test_create_trusted_contact(mock_verify_id_token, test_user):
     assert data["user_id"] == test_user.id
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_get_trusted_contacts(mock_verify_id_token, test_user):
+def test_get_trusted_contacts(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
 
     # Create contact
@@ -121,7 +81,7 @@ def test_get_trusted_contacts(mock_verify_id_token, test_user):
     assert data[0]["name"] == "Jane Doe"
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_update_trusted_contact(mock_verify_id_token, test_user):
+def test_update_trusted_contact(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
 
     # Create
@@ -146,7 +106,7 @@ def test_update_trusted_contact(mock_verify_id_token, test_user):
     assert data["phone"] == "123"
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_delete_trusted_contact(mock_verify_id_token, test_user):
+def test_delete_trusted_contact(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
 
     # Create
@@ -172,7 +132,7 @@ def test_delete_trusted_contact(mock_verify_id_token, test_user):
     assert len(get_response.json()) == 0
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_cannot_access_others_contact(mock_verify_id_token, test_user, other_user):
+def test_cannot_access_others_contact(mock_verify_id_token, test_user, other_user, client):
     # Setup: test_user creates a contact
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     create_response = client.post(

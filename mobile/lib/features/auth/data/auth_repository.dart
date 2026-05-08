@@ -57,4 +57,11 @@ class AuthRepository {
       }
     }
   }
+
+  Future<String?> getIdToken() async {
+    if (currentUser != null) {
+      return await currentUser!.getIdToken();
+    }
+    return null;
+  }
 }
