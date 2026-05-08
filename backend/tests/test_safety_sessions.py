@@ -1,77 +1,38 @@
 import pytest
 from unittest.mock import patch
-from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
 
-from app.main import app
-from app.db.session import get_db, Base
-from app.models import * # Ensure all models are loaded for Base.metadata.create_all
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.models.user import User
 
-# Setup in-memory sqlite db for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
 @pytest.fixture
-def test_user(setup_db):
-    db = TestingSessionLocal()
+def test_user(db_session):
     user = User(
         firebase_uid="test_uid_session",
         email="session@example.com",
         full_name="Session Tester",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    db.close()
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
 
 @pytest.fixture
-def other_user(setup_db):
-    db = TestingSessionLocal()
+def other_user(db_session):
     user = User(
         firebase_uid="other_uid_session",
         email="other_session@example.com",
         full_name="Other Session Tester",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    db.close()
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
-
-client = TestClient(app)
 
 def get_auth_headers():
     return {"Authorization": "Bearer fake_token"}
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_create_safety_session(mock_verify_id_token, test_user):
+def test_create_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     now_str = datetime.utcnow().isoformat()
     future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
@@ -96,7 +57,7 @@ def test_create_safety_session(mock_verify_id_token, test_user):
     assert data["user_id"] == test_user.id
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_get_safety_sessions(mock_verify_id_token, test_user):
+def test_get_safety_sessions(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     now_str = datetime.utcnow().isoformat()
     future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
@@ -123,7 +84,7 @@ def test_get_safety_sessions(mock_verify_id_token, test_user):
     assert data[0]["title"] == "Walking home"
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_cancel_safety_session(mock_verify_id_token, test_user):
+def test_cancel_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     now_str = datetime.utcnow().isoformat()
     future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
@@ -150,7 +111,7 @@ def test_cancel_safety_session(mock_verify_id_token, test_user):
     assert data["cancelled_at"] is not None
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_complete_safety_session(mock_verify_id_token, test_user):
+def test_complete_safety_session(mock_verify_id_token, test_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     now_str = datetime.utcnow().isoformat()
     future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()
@@ -176,7 +137,7 @@ def test_complete_safety_session(mock_verify_id_token, test_user):
     assert data["status"] == "completed"
 
 @patch("app.api.deps.auth.verify_id_token")
-def test_cannot_access_others_session(mock_verify_id_token, test_user, other_user):
+def test_cannot_access_others_session(mock_verify_id_token, test_user, other_user, client):
     mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
     now_str = datetime.utcnow().isoformat()
     future_str = (datetime.utcnow() + timedelta(hours=1)).isoformat()

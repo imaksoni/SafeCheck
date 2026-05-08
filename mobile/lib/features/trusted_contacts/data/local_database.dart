@@ -23,7 +23,7 @@ class LocalDatabase {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -45,12 +45,36 @@ class LocalDatabase {
     ''');
 
     await _createSafetySessionsTables(db);
+    await _createSnapshotsTables(db);
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createSafetySessionsTables(db);
     }
+    if (oldVersion < 3) {
+      await _createSnapshotsTables(db);
+    }
+  }
+
+  Future _createSnapshotsTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE snapshots (
+        local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER,
+        session_id INTEGER,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        accuracy REAL,
+        battery_percent INTEGER NOT NULL,
+        is_battery_low INTEGER NOT NULL,
+        network_type TEXT NOT NULL,
+        is_online INTEGER NOT NULL,
+        captured_at TEXT NOT NULL,
+        source TEXT NOT NULL,
+        sync_status TEXT NOT NULL
+      )
+    ''');
   }
 
   Future _createSafetySessionsTables(Database db) async {

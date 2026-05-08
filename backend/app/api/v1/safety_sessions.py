@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.crud import safety_session as crud_session
+from app.crud import snapshot as crud_snapshot
 from app.schemas.safety_session import SafetySessionResponse, SafetySessionCreate, SafetySessionUpdate
+from app.schemas.snapshot import SnapshotResponse
 from app.models.user import User
 
 router = APIRouter()
@@ -79,3 +81,17 @@ def delete_session(
 ):
     if not crud_session.delete_safety_session(db, session_id=session_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Safety session not found")
+
+@router.get("/{session_id}/snapshots", response_model=List[SnapshotResponse])
+def get_session_snapshots(
+    session_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    db_session = crud_session.get_safety_session(db, session_id=session_id, user_id=current_user.id)
+    if db_session is None:
+        raise HTTPException(status_code=404, detail="Safety session not found")
+
+    return crud_snapshot.get_session_snapshots(db, session_id=session_id, user_id=current_user.id, skip=skip, limit=limit)

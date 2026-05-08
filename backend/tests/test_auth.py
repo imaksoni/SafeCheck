@@ -1,44 +1,8 @@
 import pytest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.db.session import get_db, Base
-from app.models import * # Ensure all models are loaded for Base.metadata.create_all
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-# Setup in-memory sqlite db for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-client = TestClient(app)
+from unittest.mock import patch
 
 @patch("app.api.v1.auth.auth.verify_id_token")
-def test_firebase_login_success(mock_verify_id_token):
+def test_firebase_login_success(mock_verify_id_token, client):
     # Mock the return value of verify_id_token
     mock_verify_id_token.return_value = {
         "uid": "test_firebase_uid_123",
@@ -61,7 +25,7 @@ def test_firebase_login_success(mock_verify_id_token):
     assert "id" in data
 
 @patch("app.api.v1.auth.auth.verify_id_token")
-def test_firebase_login_invalid_token(mock_verify_id_token):
+def test_firebase_login_invalid_token(mock_verify_id_token, client):
     # Mock verify_id_token to throw an exception
     mock_verify_id_token.side_effect = Exception("Invalid token")
 
@@ -74,7 +38,7 @@ def test_firebase_login_invalid_token(mock_verify_id_token):
     assert response.json()["detail"] == "Invalid Firebase ID token"
 
 @patch("app.api.v1.auth.auth.verify_id_token")
-def test_firebase_login_missing_uid(mock_verify_id_token):
+def test_firebase_login_missing_uid(mock_verify_id_token, client):
     # Mock verify_id_token returning dict without uid
     mock_verify_id_token.return_value = {
         "email": "test@example.com",
