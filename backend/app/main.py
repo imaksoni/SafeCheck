@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1 import health, auth, trusted_contacts, safety_sessions, snapshots, jobs, alerts
+from app.api.v1 import health, auth, trusted_contacts, safety_sessions, snapshots, jobs, alerts, devices
 from app.core.firebase import init_firebase
 
 init_firebase()
@@ -17,3 +17,4 @@ app.include_router(safety_sessions.router, prefix="/api/v1/sessions", tags=["ses
 app.include_router(snapshots.router, prefix="/api/v1/snapshots", tags=["snapshots"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["alerts"])
+app.include_router(devices.router, prefix="/api/v1/devices", tags=["devices"])

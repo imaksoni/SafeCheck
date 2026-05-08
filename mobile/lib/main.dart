@@ -6,6 +6,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import 'features/safety_sessions/data/safety_sessions_repository.dart';
 import 'features/snapshots/data/snapshots_repository.dart';
+import 'app/app_lifecycle_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,14 +64,16 @@ class _SafeCheckAppState extends ConsumerState<SafeCheckApp> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SafeCheck',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
+    return AppLifecycleObserver(
+      child: MaterialApp(
+        title: 'SafeCheck',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        initialRoute: '/',
+        onGenerateRoute: AppRouter.generateRoute,
       ),
-      initialRoute: '/',
-      onGenerateRoute: AppRouter.generateRoute,
     );
   }
 }
