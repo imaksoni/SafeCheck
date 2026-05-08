@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
-from app.schemas.snapshot import SnapshotCreate
+from app.schemas.snapshot import SnapshotCreate, SnapshotResponse
 
 
 class AlertDeliveryBase(BaseModel):
@@ -44,3 +44,14 @@ class AlertResponse(AlertBase):
 class SOSCreate(BaseModel):
     session_id: Optional[int] = None
     snapshot: Optional[SnapshotCreate] = None
+
+
+class LostPhoneAlertResponse(BaseModel):
+    alert_id: int
+    created_at: datetime
+    type: str
+    snapshot: Optional[SnapshotResponse] = None
+    last_synced_at: Optional[datetime] = None
+    notified_contacts: list[str]
+
+    model_config = ConfigDict(from_attributes=True)
