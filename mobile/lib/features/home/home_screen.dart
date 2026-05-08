@@ -62,6 +62,13 @@ class HomeScreen extends ConsumerWidget {
               },
               child: const Text('Safety Sessions'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/lost-phone');
+              },
+              child: const Text('Lost Phone?'),
+            ),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/trusted_contacts/presentation/contacts_screen.dart';
 import '../features/safety_sessions/presentation/sessions_screen.dart';
+import '../features/lost_phone/presentation/lost_phone_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -21,6 +22,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ContactsScreen());
       case '/safety-sessions':
         return MaterialPageRoute(builder: (_) => const SessionsScreen());
+            case '/lost-phone':
+        return MaterialPageRoute(builder: (_) => const LostPhoneScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
