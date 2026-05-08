@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
+from app.schemas.snapshot import SnapshotCreate
 
 
 class AlertDeliveryBase(BaseModel):
@@ -39,3 +40,7 @@ class AlertResponse(AlertBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class SOSCreate(BaseModel):
+    session_id: Optional[int] = None
+    snapshot: Optional[SnapshotCreate] = None

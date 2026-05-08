@@ -36,3 +36,4 @@ mobile/.env
 **/.DS_Store
 *.pyc
 backend/venv/
+.venv/
