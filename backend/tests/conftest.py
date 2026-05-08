@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
+from app.api.deps import get_current_user
 from app.db.session import get_db, Base
 from app.models import *  # Ensure all models are loaded
 
@@ -26,6 +27,11 @@ def override_get_db():
         db.close()
 
 app.dependency_overrides[get_db] = override_get_db
+
+def override_get_current_user():
+    return User(id=1, email="test@test.com", firebase_uid="mock-uid")
+
+app.dependency_overrides[get_current_user] = override_get_current_user
 
 @pytest.fixture(autouse=True)
 def setup_db():
