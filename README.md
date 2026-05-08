@@ -38,7 +38,19 @@ flutterfire configure
 ```
 This will generate the required `firebase_options.dart` and update platform configurations. Then, uncomment the Firebase initialization code in `mobile/lib/main.dart`.
 
-### 4. Run Mobile App
+### 4. Background Tasks Platform Setup
+The app uses Workmanager for syncing and snapshot capture in the background. Note the following platform caveats:
+
+**Android:**
+- Requires permissions in `AndroidManifest.xml` (e.g., `WAKE_LOCK`, `ACCESS_BACKGROUND_LOCATION` if capturing location in background).
+- Supports periodic tasks, but Android enforces a minimum interval of 15 minutes.
+
+**iOS:**
+- Requires enabling "Background fetch" in Xcode (Capabilities -> Background Modes).
+- Update `Info.plist` with `UIBackgroundModes` containing `fetch` (and `location` if needed).
+- Background execution is opportunistic and non-deterministic (managed by iOS based on app usage).
+
+### 5. Run Mobile App
 Navigate to the mobile directory and run:
 
 ```bash

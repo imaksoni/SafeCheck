@@ -46,6 +46,7 @@ dependencies:
   battery_plus: ^7.0.0
   connectivity_plus: ^7.1.1
   intl: ^0.20.0
+  workmanager: ^0.9.0+3
 
 dev_dependencies:
   flutter_test:

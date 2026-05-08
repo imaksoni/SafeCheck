@@ -7,6 +7,7 @@ import 'dart:async';
 import 'features/safety_sessions/data/safety_sessions_repository.dart';
 import 'features/snapshots/data/snapshots_repository.dart';
 import 'app/app_lifecycle_observer.dart';
+import 'app/background/background_task_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,11 @@ void main() async {
   // await Firebase.initializeApp(
   //   options: DefaultFirebaseOptions.currentPlatform,
   // );
+
+  final backgroundTaskManager = BackgroundTaskManager();
+  await backgroundTaskManager.initialize();
+  backgroundTaskManager.registerPeriodicSync();
+
   runApp(
     const ProviderScope(
       child: SafeCheckApp(),
