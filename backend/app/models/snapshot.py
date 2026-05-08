@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from typing import Optional
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,7 +25,7 @@ class Snapshot(Base):
     is_online: Mapped[bool] = mapped_column(Boolean)
 
     captured_at: Mapped[datetime] = mapped_column(DateTime)
-    received_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    received_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     source: Mapped[str] = mapped_column(String)
 
     user = relationship("User", backref="snapshots")

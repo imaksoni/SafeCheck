@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.snapshot import Snapshot
 from app.schemas.snapshot import SnapshotCreate
@@ -8,7 +8,7 @@ def create_snapshot(db: Session, snapshot: SnapshotCreate, user_id: int) -> Snap
     db_snapshot = Snapshot(
         **snapshot.model_dump(),
         user_id=user_id,
-        received_at=datetime.utcnow()
+        received_at=datetime.now(timezone.utc)
     )
     db.add(db_snapshot)
     db.commit()

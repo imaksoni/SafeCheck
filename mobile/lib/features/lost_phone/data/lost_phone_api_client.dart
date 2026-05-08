@@ -1,3 +1,4 @@
+import '../../../app/config.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -11,7 +12,7 @@ final lostPhoneApiProvider = Provider<LostPhoneApiClient>((ref) {
 
 class LostPhoneApiClient {
   final AuthRepository _authRepo;
-  final String _baseUrl = 'http://localhost:8000/api/v1';
+  final String _baseUrl = Config.apiUrl;
 
   LostPhoneApiClient(this._authRepo);
 

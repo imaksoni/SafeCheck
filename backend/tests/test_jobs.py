@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from app.models.user import User
 from app.models.safety_session import SafetySession
 from app.models.snapshot import Snapshot
@@ -46,7 +46,7 @@ def test_process_expired_sessions(client, db_session):
         is_battery_low=False,
         network_type="wifi",
         is_online=True,
-        captured_at=datetime.utcnow() - timedelta(minutes=5),
+        captured_at=datetime.now(timezone.utc) - timedelta(minutes=5),
         source="background"
     )
     db_session.add(snapshot)
@@ -58,8 +58,8 @@ def test_process_expired_sessions(client, db_session):
         user_id=user.id,
         title="Expired Walk",
         status="active",
-        start_at=datetime.utcnow() - timedelta(hours=2),
-        deadline_at=datetime.utcnow() - timedelta(minutes=10) # 10 mins ago
+        start_at=datetime.now(timezone.utc) - timedelta(hours=2),
+        deadline_at=datetime.now(timezone.utc) - timedelta(minutes=10) # 10 mins ago
     )
 
     # 5. Future safety session (not expired)
@@ -67,8 +67,8 @@ def test_process_expired_sessions(client, db_session):
         user_id=user.id,
         title="Future Walk",
         status="active",
-        start_at=datetime.utcnow(),
-        deadline_at=datetime.utcnow() + timedelta(hours=1)
+        start_at=datetime.now(timezone.utc),
+        deadline_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     db_session.add(expired_session)
     db_session.add(future_session)

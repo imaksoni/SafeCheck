@@ -1,3 +1,4 @@
+import '../../../app/config.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -12,7 +13,7 @@ final safetySessionsApiProvider = Provider<SafetySessionsApiClient>((ref) {
 class SafetySessionsApiClient {
   final SecureTokenStorage _tokenStorage;
   // TODO: Use env variable for base URL
-  final String _baseUrl = 'http://10.0.2.2:8000/api/v1/sessions';
+  final String _baseUrl = '${Config.apiUrl}/sessions';
 
   SafetySessionsApiClient(this._tokenStorage);
 

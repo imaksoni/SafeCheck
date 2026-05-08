@@ -28,11 +28,6 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 
-def override_get_current_user():
-    return User(id=1, email="test@test.com", firebase_uid="mock-uid")
-
-app.dependency_overrides[get_current_user] = override_get_current_user
-
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.drop_all(bind=engine)

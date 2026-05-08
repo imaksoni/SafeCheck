@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from sqlalchemy.orm import Session
@@ -24,7 +24,7 @@ def create(db: Session, device: DeviceCreate, user_id: int) -> Device:
         device_name=device.device_name,
         fcm_token=device.fcm_token,
         is_active=True,
-        last_seen_at=datetime.utcnow()
+        last_seen_at=datetime.now(timezone.utc)
     )
     db.add(db_obj)
     db.commit()
@@ -42,7 +42,7 @@ def update(db: Session, db_obj: Device, obj_in: DeviceUpdate) -> Device:
     return db_obj
 
 def update_heartbeat(db: Session, db_obj: Device) -> Device:
-    db_obj.last_seen_at = datetime.utcnow()
+    db_obj.last_seen_at = datetime.now(timezone.utc)
     db_obj.is_active = True # Reactivate if it was inactive
     db.add(db_obj)
     db.commit()

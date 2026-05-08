@@ -3,7 +3,7 @@ Delayed SOS for solo travel and first meetings
 
 ## Overview
 This repository contains the mobile app and backend services for SafeCheck.
-- Mobile app: built with Flutter.
+- Mobile app: built with Flutter, Riverpod, and SQLite.
 - Backend: built with FastAPI, PostgreSQL, SQLAlchemy 2.0, and Alembic.
 
 ## Quick Start
@@ -17,7 +17,7 @@ cp mobile/.env.example mobile/.env
 ```
 
 ### 2. Start Backend Locally (Docker)
-Ensure Docker is installed and running, then execute:
+Ensure Docker is installed and running. The Docker Compose file sets up both the FastAPI application and the PostgreSQL database.
 
 ```bash
 docker compose up --build -d
@@ -51,12 +51,34 @@ The app uses Workmanager for syncing and snapshot capture in the background. Not
 - Background execution is opportunistic and non-deterministic (managed by iOS based on app usage).
 
 ### 5. Run Mobile App
-Navigate to the mobile directory and run:
+Navigate to the mobile directory, install dependencies, and run:
 
 ```bash
 cd mobile
 flutter pub get
+
+# By default, the app points to localhost (10.0.2.2 for Android emulators).
+# To run with a custom API URL:
+# flutter run --dart-define=API_URL=http://your-custom-url:8000/api/v1
 flutter run
+```
+
+## Running Tests
+### Backend
+To run backend tests locally without Docker, you will need Python 3.12 installed.
+
+```bash
+cd backend
+pip install -r requirements.txt
+# Run tests using an in-memory or file-based SQLite database
+DATABASE_URL=sqlite:///./test.db pytest tests/
+```
+
+### Mobile
+To run Flutter tests:
+```bash
+cd mobile
+flutter test
 ```
 
 ## Documentation
