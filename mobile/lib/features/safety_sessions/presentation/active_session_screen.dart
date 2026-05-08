@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/safety_session.dart';
 import 'safety_sessions_controller.dart';
 import '../../snapshots/presentation/snapshots_controller.dart';
+import '../../alerts/presentation/alerts_controller.dart';
 
 class ActiveSessionScreen extends ConsumerStatefulWidget {
   final SafetySession session;
@@ -20,6 +21,29 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
     // Watch to rebuild when snapshots change
     ref.watch(snapshotsControllerProvider);
     final snapshotsNotifier = ref.read(snapshotsControllerProvider.notifier);
+
+    ref.listen<AlertsState>(alertsControllerProvider, (previous, next) {
+      if (next.hasShownSnackbar) return;
+
+      if (next.sosState == SosState.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('SOS Alert sent successfully!'), backgroundColor: Colors.green),
+        );
+        ref.read(alertsControllerProvider.notifier).markSnackbarShown();
+      } else if (next.sosState == SosState.pending) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offline: SOS Alert queued for delivery'), backgroundColor: Colors.orange),
+        );
+        ref.read(alertsControllerProvider.notifier).markSnackbarShown();
+      } else if (next.sosState == SosState.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send SOS: ${next.errorMessage}'), backgroundColor: Colors.red),
+        );
+        ref.read(alertsControllerProvider.notifier).markSnackbarShown();
+      }
+    });
+
+    final alertsState = ref.watch(alertsControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,6 +128,19 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: alertsState.sosState == SosState.loading
+            ? null
+            : () {
+                ref.read(alertsControllerProvider.notifier).triggerSos(sessionId: widget.session.serverId ?? widget.session.localId);
+              },
+        backgroundColor: Colors.red,
+        icon: alertsState.sosState == SosState.loading
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
+            : const Icon(Icons.warning, color: Colors.white),
+        label: const Text('SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
