@@ -38,3 +38,44 @@ async def close_redis() -> None:
 async def get_redis() -> AsyncGenerator[redis.Redis | None, None]:
     """Dependency to get the Redis client."""
     yield redis_client
+
+async def cache_get(key: str) -> str | None:
+    """Retrieve a value from the cache."""
+    if not redis_client:
+        return None
+    try:
+        return await redis_client.get(key)
+    except Exception as e:
+        logger.error(f"Redis cache_get error: {e}")
+        return None
+
+async def cache_set(key: str, value: str, ttl: int) -> None:
+    """Set a value in the cache with a TTL."""
+    if not redis_client:
+        return
+    try:
+        await redis_client.set(key, value, ex=ttl)
+    except Exception as e:
+        logger.error(f"Redis cache_set error: {e}")
+
+async def cache_delete(key: str) -> None:
+    """Delete a value from the cache."""
+    if not redis_client:
+        return
+    try:
+        await redis_client.delete(key)
+    except Exception as e:
+        logger.error(f"Redis cache_delete error: {e}")
+
+async def cache_delete_pattern(pattern: str) -> None:
+    """Delete all keys matching a pattern using SCAN."""
+    if not redis_client:
+        return
+    try:
+        cursor = '0'
+        while cursor != 0:
+            cursor, keys = await redis_client.scan(cursor=cursor, match=pattern, count=100)
+            if keys:
+                await redis_client.delete(*keys)
+    except Exception as e:
+        logger.error(f"Redis cache_delete_pattern error: {e}")

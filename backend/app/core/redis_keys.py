@@ -16,6 +16,10 @@ def get_cache_key(entity: str, id_val: str) -> str:
     """Generate a key for caching database or computation results."""
     return _generate_key("cache", entity, id_val, "data")
 
+def get_cache_key_v1(entity: str, id_val: str) -> str:
+    """Generate a versioned key (v1) for caching database or computation results."""
+    return _generate_key("cache:v1", entity, id_val, "data")
+
 def get_idempotency_key(action: str, idempotency_key: str) -> str:
     """Generate a key to ensure operations are idempotent (e.g., preventing duplicate alerts)."""
     return _generate_key("idempotency", "action", action, idempotency_key)

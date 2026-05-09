@@ -142,3 +142,53 @@ def test_get_session_snapshots(mock_verify_id_token, test_user, test_session, cl
     assert isinstance(data, list)
     assert len(data) == 1
     assert data[0]["latitude"] == 40.0
+
+@patch("app.api.deps.auth.verify_id_token")
+@patch("app.api.v1.snapshots.cache_get")
+@patch("app.api.v1.snapshots.cache_set")
+def test_get_latest_snapshot_caching(mock_cache_set, mock_cache_get, mock_verify_id_token, test_user, client):
+    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+
+    # Setup: Create a snapshot first to avoid 404
+    client.post(
+        "/api/v1/snapshots",
+        headers={"Authorization": "Bearer fake_token"},
+        json={
+            "latitude": 40.7128,
+            "longitude": -74.0060,
+            "battery_percent": 80,
+            "is_battery_low": False,
+            "network_type": "wifi",
+            "is_online": True,
+            "captured_at": "2023-01-01T12:00:00Z",
+            "source": "background"
+        }
+    )
+
+    # Simulate a cache miss
+    mock_cache_get.return_value = None
+
+    response = client.get(
+        "/api/v1/snapshots/latest",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response.status_code == 200
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()
+
+    # Simulate a cache hit
+    mock_cache_get.reset_mock()
+    mock_cache_set.reset_mock()
+    mock_cache_get.return_value = '{"id": 999, "user_id": 1, "latitude": 10.0, "longitude": 20.0, "battery_percent": 100, "is_battery_low": false, "network_type": "wifi", "is_online": true, "captured_at": "2023-01-01T12:00:00Z", "received_at": "2023-01-01T12:00:00Z", "source": "test"}'
+
+    response = client.get(
+        "/api/v1/snapshots/latest",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == 999
+    assert data["latitude"] == 10.0
+
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_not_called()
