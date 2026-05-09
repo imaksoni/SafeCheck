@@ -1,10 +1,19 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import health, auth, trusted_contacts, safety_sessions, snapshots, jobs, alerts, devices
 from app.core.firebase import init_firebase
 
 init_firebase()
 
 app = FastAPI(title="SafeCheck API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8080", "https://app.safecheck.com"],  # Specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 def root_health_check():

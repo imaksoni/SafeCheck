@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from app.core.config import settings
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Any
@@ -12,7 +13,15 @@ from app.models.alert_delivery import AlertDelivery
 
 router = APIRouter()
 
-@router.post("/process-expired-sessions", status_code=status.HTTP_200_OK)
+def verify_cron_secret(x_cron_secret: str = Header(None)):
+    if not settings.CRON_SECRET:
+        # If not set in environment, allow for backward compatibility/dev
+        return True
+    if x_cron_secret != settings.CRON_SECRET:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid CRON secret")
+    return True
+
+@router.post("/process-expired-sessions", status_code=status.HTTP_200_OK, dependencies=[Depends(verify_cron_secret)])
 def process_expired_sessions(db: Session = Depends(get_db)) -> Any:
     """
     Check for expired safety sessions and create alerts + deliveries.
