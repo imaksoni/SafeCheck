@@ -10,10 +10,17 @@ from app.crud import trusted_contact as crud_trusted_contact
 from app.schemas.alert import AlertResponse, SOSCreate, AlertCreate, LostPhoneAlertResponse
 from app.schemas.snapshot import SnapshotCreate, SnapshotResponse
 from app.models.user import User
+from app.core.config import settings
+from app.core.rate_limit import UserRateLimiter
 
 router = APIRouter()
 
-@router.post("/sos", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sos",
+    response_model=AlertResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(UserRateLimiter("sos", settings.RATE_LIMIT_SOS_ATTEMPTS, settings.RATE_LIMIT_SOS_WINDOW))]
+)
 def trigger_sos(
     sos_data: SOSCreate,
     db: Session = Depends(deps.get_db),
@@ -49,7 +56,12 @@ def trigger_sos(
 
     return new_alert
 
-@router.post("/lost-phone", response_model=LostPhoneAlertResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/lost-phone",
+    response_model=LostPhoneAlertResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(UserRateLimiter("lost_phone", settings.RATE_LIMIT_LOST_PHONE_ATTEMPTS, settings.RATE_LIMIT_LOST_PHONE_WINDOW))]
+)
 def trigger_lost_phone(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
