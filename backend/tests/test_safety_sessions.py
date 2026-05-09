@@ -159,3 +159,91 @@ def test_cannot_access_others_session(mock_verify_id_token, test_user, other_use
         headers=get_auth_headers()
     )
     assert get_response.status_code == 404
+
+@patch("app.api.deps.auth.verify_id_token")
+@patch("app.api.v1.safety_sessions.cache_get")
+@patch("app.api.v1.safety_sessions.cache_set")
+def test_sessions_list_caching(mock_cache_set, mock_cache_get, mock_verify_id_token, test_user, client):
+    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+
+    # Simulate a cache miss
+    mock_cache_get.return_value = None
+
+    response = client.get(
+        "/api/v1/sessions",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response.status_code == 200
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()
+
+    # Simulate a cache hit
+    mock_cache_get.reset_mock()
+    mock_cache_set.reset_mock()
+    mock_cache_get.return_value = '[{"id": 999, "user_id": 1, "title": "Cached Session", "status": "active", "start_at": "2023-01-01T00:00:00Z", "deadline_at": "2023-01-01T01:00:00Z", "created_at": "2023-01-01T00:00:00Z", "updated_at": "2023-01-01T00:00:00Z"}]'
+
+    response = client.get(
+        "/api/v1/sessions",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Cached Session"
+
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_not_called()
+
+@patch("app.api.deps.auth.verify_id_token")
+@patch("app.api.v1.safety_sessions.cache_get")
+@patch("app.api.v1.safety_sessions.cache_set")
+def test_read_session_caching(mock_cache_set, mock_cache_get, mock_verify_id_token, test_user, client):
+    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+
+    # Setup: Create a completed session
+    create_response = client.post(
+        "/api/v1/sessions",
+        headers={"Authorization": "Bearer fake_token"},
+        json={
+            "title": "Evening Run",
+            "start_at": "2023-01-01T18:00:00Z",
+            "deadline_at": "2023-01-01T19:00:00Z"
+        }
+    )
+    session_id = create_response.json()["id"]
+    client.post(f"/api/v1/sessions/{session_id}/complete", headers={"Authorization": "Bearer fake_token"})
+
+    # Simulate a cache miss on the completed session
+    mock_cache_get.return_value = None
+
+    response = client.get(
+        f"/api/v1/sessions/{session_id}",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response.status_code == 200
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()  # Should cache because it is safe (not active)
+
+    # Setup: Create an active session
+    create_response2 = client.post(
+        "/api/v1/sessions",
+        headers={"Authorization": "Bearer fake_token"},
+        json={
+            "title": "Morning Run",
+            "start_at": "2023-01-01T08:00:00Z",
+            "deadline_at": "2023-01-01T09:00:00Z"
+        }
+    )
+    session_id2 = create_response2.json()["id"]
+
+    mock_cache_get.reset_mock()
+    mock_cache_set.reset_mock()
+    mock_cache_get.return_value = None
+
+    response2 = client.get(
+        f"/api/v1/sessions/{session_id2}",
+        headers={"Authorization": "Bearer fake_token"}
+    )
+    assert response2.status_code == 200
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_not_called()  # Should NOT cache because it is active

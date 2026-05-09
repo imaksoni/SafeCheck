@@ -157,3 +157,37 @@ def test_cannot_access_others_contact(mock_verify_id_token, test_user, other_use
         headers=get_auth_headers()
     )
     assert delete_response.status_code == 403
+
+@patch("app.api.deps.auth.verify_id_token")
+@patch("app.api.v1.trusted_contacts.cache_get")
+@patch("app.api.v1.trusted_contacts.cache_set")
+def test_trusted_contacts_caching(mock_cache_set, mock_cache_get, mock_verify_id_token, test_user, client):
+    mock_verify_id_token.return_value = {"uid": test_user.firebase_uid}
+
+    # Simulate a cache miss
+    mock_cache_get.return_value = None
+
+    response = client.get(
+        "/api/v1/trusted-contacts/",
+        headers=get_auth_headers()
+    )
+    assert response.status_code == 200
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()
+
+    # Simulate a cache hit
+    mock_cache_get.reset_mock()
+    mock_cache_set.reset_mock()
+    mock_cache_get.return_value = '[{"id": 1, "user_id": 1, "name": "Cached Contact", "phone": "123", "relation": null, "allow_session_alerts": false, "allow_lost_phone_alerts": false, "created_at": "2023-01-01T00:00:00Z", "updated_at": "2023-01-01T00:00:00Z"}]'
+
+    response = client.get(
+        "/api/v1/trusted-contacts/",
+        headers=get_auth_headers()
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Cached Contact"
+
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_not_called()
