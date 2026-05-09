@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from firebase_admin import auth
 from app.db.session import get_db
 from app.models.user import User
+from app.core.config import settings
+from app.core.rate_limit import AnonymousRateLimiter
 
 router = APIRouter()
 
@@ -20,7 +22,11 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.post("/firebase-login", response_model=UserResponse)
+@router.post(
+    "/firebase-login",
+    response_model=UserResponse,
+    dependencies=[Depends(AnonymousRateLimiter("login", settings.RATE_LIMIT_LOGIN_ATTEMPTS, settings.RATE_LIMIT_LOGIN_WINDOW))]
+)
 def firebase_login(payload: TokenPayload, db: Session = Depends(get_db)):
     try:
         decoded_token = auth.verify_id_token(payload.token)

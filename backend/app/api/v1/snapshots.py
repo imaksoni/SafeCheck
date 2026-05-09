@@ -6,10 +6,17 @@ from app.api import deps
 from app.crud import snapshot as crud_snapshot
 from app.schemas.snapshot import SnapshotCreate, SnapshotResponse
 from app.models.user import User
+from app.core.config import settings
+from app.core.rate_limit import UserRateLimiter
 
 router = APIRouter()
 
-@router.post("", response_model=SnapshotResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=SnapshotResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(UserRateLimiter("snapshot", settings.RATE_LIMIT_SNAPSHOT_ATTEMPTS, settings.RATE_LIMIT_SNAPSHOT_WINDOW))]
+)
 def create_snapshot(
     snapshot: SnapshotCreate,
     db: Session = Depends(deps.get_db),

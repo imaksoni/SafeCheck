@@ -57,6 +57,14 @@ In a production environment, this endpoint should be secured (e.g., via internal
 - **AWS EventBridge**: Schedule a rule to hit this endpoint every minute.
 - **Google Cloud Scheduler**: Trigger an HTTP target every minute.
 
+## Rate Limiting
+The API implements Redis-backed rate limiting for certain endpoints to prevent abuse.
+Limits can be configured using environment variables (e.g., `RATE_LIMIT_LOGIN_ATTEMPTS`, `RATE_LIMIT_LOGIN_WINDOW`).
+Rate limits are applied per IP for anonymous endpoints (e.g., login) and per user ID for authenticated endpoints.
+
+If limits are exceeded, the API returns a `429 Too Many Requests` status code with a `Retry-After` header.
+If Redis is down or unavailable, rate limiting is bypassed (fail open).
+
 ## API Documentation
 Once the server is running, you can access the automatically generated API documentation at:
 - Swagger UI: http://localhost:8000/docs
