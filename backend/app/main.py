@@ -1,11 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.api.v1 import health, auth, trusted_contacts, safety_sessions, snapshots, jobs, alerts, devices
 from app.core.firebase import init_firebase
+from app.core.redis import init_redis, close_redis
 
 init_firebase()
 
-app = FastAPI(title="SafeCheck API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await init_redis()
+    yield
+    # Shutdown
+    await close_redis()
+
+app = FastAPI(title="SafeCheck API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,9 +25,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.core import redis
+
 @app.get("/health")
-def root_health_check():
-    return {"status": "ok", "message": "Healthy"}
+async def root_health_check():
+    redis_status = "unconfigured"
+    if redis.redis_client:
+        try:
+            await redis.redis_client.ping()
+            redis_status = "ok"
+        except Exception:
+            redis_status = "unhealthy"
+
+    return {"status": "ok", "message": "Healthy", "redis": redis_status}
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])

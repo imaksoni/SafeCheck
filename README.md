@@ -17,13 +17,15 @@ cp mobile/.env.example mobile/.env
 ```
 
 ### 2. Start Backend Locally (Docker)
-Ensure Docker is installed and running. The Docker Compose file sets up both the FastAPI application and the PostgreSQL database.
+Ensure Docker is installed and running. The Docker Compose file sets up the FastAPI application, PostgreSQL database, and Redis cache.
 
 ```bash
 docker compose up --build -d
 ```
 The backend should be available at http://localhost:8000.
-You can verify it via `curl http://localhost:8000/health`.
+You can verify it via `curl http://localhost:8000/health` (which will also indicate Redis status).
+
+**Note:** Ensure `REDIS_URL` is set in your `.env` file (e.g., `REDIS_URL=redis://redis:6379/0` if running inside Docker Compose or `REDIS_URL=redis://localhost:6379/0` if running the backend bare-metal).
 
 ### 3. Firebase Setup
 The mobile app uses Firebase for Authentication. To configure Firebase, install the FlutterFire CLI and configure the app for your Firebase project:
