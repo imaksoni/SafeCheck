@@ -6,7 +6,8 @@ from app.models.alert import Alert
 from app.models.alert_delivery import AlertDelivery
 from app.models.snapshot import Snapshot
 import datetime
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
+from app.core import redis
 
 def test_sos_with_provided_snapshot(client: TestClient, db_session: Session):
     with patch("app.api.deps.auth.verify_id_token") as mock_verify_id_token:
@@ -57,9 +58,31 @@ def test_sos_with_provided_snapshot(client: TestClient, db_session: Session):
             }
         }
 
+        # Test idempotency (first request)
+        headers["X-Idempotency-Key"] = "idemp-key-1"
         response = client.post("/api/v1/alerts/sos", json=sos_payload, headers=headers)
         assert response.status_code == 201
         alert_data = response.json()
+
+        # Test idempotency (second request with same key and payload should succeed and return exact same payload)
+        response_dup = client.post("/api/v1/alerts/sos", json=sos_payload, headers=headers)
+        assert response_dup.status_code == 201
+        # The 'created_at' timestamp may differ slightly if re-dumped depending on pydantic versions,
+        # but the core alert_id should match
+        if "alert_id" in alert_data:
+            assert response_dup.json()["alert_id"] == alert_data["alert_id"]
+        else:
+            assert response_dup.json()["id"] == alert_data["id"]
+        assert response_dup.json()["type"] == alert_data["type"]
+
+        # Test idempotency (same key, different payload should conflict)
+        sos_payload_diff = dict(sos_payload)
+        sos_payload_diff["snapshot"] = dict(sos_payload["snapshot"])
+        sos_payload_diff["snapshot"]["latitude"] = 38.0000
+        response_conflict = client.post("/api/v1/alerts/sos", json=sos_payload_diff, headers=headers)
+        assert response_conflict.status_code == 409
+        assert "different payload" in response_conflict.json()["detail"]
+
         assert alert_data["type"] == "sos"
         assert alert_data["user_id"] == user_id
         assert alert_data["snapshot_id"] is not None
@@ -181,9 +204,19 @@ def test_lost_phone_with_snapshot(client: TestClient, db_session: Session):
         })
 
         # Trigger lost phone alert
+        headers["X-Idempotency-Key"] = "idemp-key-lost-1"
         response = client.post("/api/v1/alerts/lost-phone", headers=headers)
         assert response.status_code == 201
         alert_data = response.json()
+
+        # Second request should replay cached response
+        response_dup = client.post("/api/v1/alerts/lost-phone", headers=headers)
+        assert response_dup.status_code == 201
+        if "alert_id" in alert_data:
+            assert response_dup.json()["alert_id"] == alert_data["alert_id"]
+        else:
+            assert response_dup.json()["id"] == alert_data["id"]
+        assert response_dup.json()["type"] == alert_data["type"]
 
         assert alert_data["type"] == "lost_phone"
         assert alert_data["snapshot"] is not None
@@ -191,6 +224,43 @@ def test_lost_phone_with_snapshot(client: TestClient, db_session: Session):
         assert alert_data["last_synced_at"] is not None
         assert "Lost Contact 1" in alert_data["notified_contacts"]
         assert "Lost Contact 2" not in alert_data["notified_contacts"]
+
+def test_idempotency_failure_unlocks(client: TestClient, db_session: Session):
+    with patch("app.api.deps.auth.verify_id_token") as mock_verify_id_token, \
+         patch("app.api.v1.alerts.run_in_threadpool", new_callable=AsyncMock) as mock_threadpool:
+
+        mock_verify_id_token.return_value = {
+            "uid": "test_firebase_uid_fail",
+            "email": "fail@example.com",
+        }
+
+        # Login to create user
+        client.post("/api/v1/auth/firebase-login", json={"token": "valid_mock_token_fail"})
+        headers = {"Authorization": f"Bearer valid_mock_token_fail", "X-Idempotency-Key": "fail-key-1"}
+
+        # Simulate a DB failure during execution
+        mock_threadpool.side_effect = Exception("DB failure")
+
+        # FastAPI test client raises 500 errors as Python exceptions unless configured otherwise
+        try:
+            client.post("/api/v1/alerts/lost-phone", headers=headers)
+        except Exception as e:
+            assert str(e) == "DB failure"
+
+        # Now simulate success on retry
+        mock_threadpool.side_effect = None
+        mock_threadpool.return_value = {
+            "alert_id": 999,
+            "created_at": datetime.datetime.now(timezone.utc).isoformat(),
+            "type": "lost_phone",
+            "snapshot": None,
+            "last_synced_at": None,
+            "notified_contacts": []
+        }
+
+        # The lock should have been released, allowing a successful retry
+        response_retry = client.post("/api/v1/alerts/lost-phone", headers=headers)
+        assert response_retry.status_code == 201
 
 def test_lost_phone_without_snapshot(client: TestClient, db_session: Session):
     with patch("app.api.deps.auth.verify_id_token") as mock_verify_id_token:
