@@ -81,6 +81,11 @@ def test_process_expired_sessions(client, db_session):
     assert response.status_code == 200
     assert response.json()["message"] == "Processed 1 expired sessions."
 
+    # Call again to verify dedupe/idempotency doesn't throw but processes 0
+    response_dup = client.post("/api/v1/jobs/process-expired-sessions")
+    assert response_dup.status_code == 200
+    assert response_dup.json()["message"] == "Processed 0 expired sessions."
+
     # Verify Database State
 
     # Session status and alert_sent_at

@@ -1,9 +1,11 @@
 from typing import List, Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.idempotency import IdempotencyManager, IdempotencyConflictException
 from app.crud import snapshot as crud_snapshot
 from app.crud import alert as crud_alert
 from app.crud import trusted_contact as crud_trusted_contact
@@ -15,17 +17,7 @@ from app.core.rate_limit import UserRateLimiter
 
 router = APIRouter()
 
-@router.post(
-    "/sos",
-    response_model=AlertResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(UserRateLimiter("sos", settings.RATE_LIMIT_SOS_ATTEMPTS, settings.RATE_LIMIT_SOS_WINDOW))]
-)
-def trigger_sos(
-    sos_data: SOSCreate,
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
+def _sync_trigger_sos(db: Session, sos_data: SOSCreate, current_user: User) -> AlertResponse:
     snapshot_id = None
 
     # 1. Handle snapshot
@@ -54,18 +46,47 @@ def trigger_sos(
         if contact.allow_session_alerts:
             crud_alert.create_alert_delivery(db=db, alert_id=new_alert.id, contact_id=contact.id)
 
-    return new_alert
+    return AlertResponse.model_validate(new_alert)
+
 
 @router.post(
-    "/lost-phone",
-    response_model=LostPhoneAlertResponse,
+    "/sos",
+    response_model=AlertResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(UserRateLimiter("lost_phone", settings.RATE_LIMIT_LOST_PHONE_ATTEMPTS, settings.RATE_LIMIT_LOST_PHONE_WINDOW))]
+    dependencies=[
+        Depends(UserRateLimiter("sos", settings.RATE_LIMIT_SOS_ATTEMPTS, settings.RATE_LIMIT_SOS_WINDOW))
+    ]
 )
-def trigger_lost_phone(
+async def trigger_sos(
+    sos_data: SOSCreate,
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
+    idem_manager = IdempotencyManager("sos")
+
+    if x_idempotency_key:
+        try:
+            cached_response = await idem_manager.check_and_lock(x_idempotency_key, current_user.id, sos_data)
+            if cached_response is not None:
+                return cached_response
+        except IdempotencyConflictException as e:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.detail)
+
+    try:
+        response = await run_in_threadpool(_sync_trigger_sos, db, sos_data, current_user)
+
+        if x_idempotency_key:
+            await idem_manager.save_success(x_idempotency_key, current_user.id, sos_data, response)
+
+        return response
+    except Exception as e:
+        if x_idempotency_key:
+            await idem_manager.unlock(x_idempotency_key, current_user.id)
+        raise e
+
+
+def _sync_trigger_lost_phone(db: Session, current_user: User) -> LostPhoneAlertResponse:
     # 1. Get latest stored snapshot
     latest_snapshot = crud_snapshot.get_latest_snapshot(db=db, user_id=current_user.id)
     snapshot_id = latest_snapshot.id if latest_snapshot else None
@@ -99,3 +120,40 @@ def trigger_lost_phone(
         last_synced_at=last_synced_at,
         notified_contacts=notified_contacts
     )
+
+
+@router.post(
+    "/lost-phone",
+    response_model=LostPhoneAlertResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(UserRateLimiter("lost_phone", settings.RATE_LIMIT_LOST_PHONE_ATTEMPTS, settings.RATE_LIMIT_LOST_PHONE_WINDOW))
+    ]
+)
+async def trigger_lost_phone(
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    idem_manager = IdempotencyManager("lost_phone")
+
+    if x_idempotency_key:
+        try:
+            # We use an empty dict as payload since there is no body payload for this endpoint
+            cached_response = await idem_manager.check_and_lock(x_idempotency_key, current_user.id, {})
+            if cached_response is not None:
+                return cached_response
+        except IdempotencyConflictException as e:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.detail)
+
+    try:
+        response = await run_in_threadpool(_sync_trigger_lost_phone, db, current_user)
+
+        if x_idempotency_key:
+            await idem_manager.save_success(x_idempotency_key, current_user.id, {}, response)
+
+        return response
+    except Exception as e:
+        if x_idempotency_key:
+            await idem_manager.unlock(x_idempotency_key, current_user.id)
+        raise e

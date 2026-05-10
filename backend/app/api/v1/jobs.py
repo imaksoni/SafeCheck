@@ -25,6 +25,10 @@ def verify_cron_secret(x_cron_secret: str = Header(None)):
 def process_expired_sessions(db: Session = Depends(get_db)) -> Any:
     """
     Check for expired safety sessions and create alerts + deliveries.
+
+    This background job path uses a best-effort Redis lock for deduplication per session.
+    It does not do full response replay like the API endpoints.
+    If Redis is unavailable, it fails open and relies on the DB `with_for_update` lock.
     """
     now = datetime.now(timezone.utc)
 
